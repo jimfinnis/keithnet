@@ -15,12 +15,22 @@
 
 #include "backpropNoBiasHormone.h"
 
+#define HNODES 8
 #define NUM_SONARS 3
 
 static float sonars[NUM_SONARS];
 void sonarCallback(const std_msgs::Float32MultiArray::ConstPtr &msg){
-    for(int i=0;i<NUM_SONARS;i++)
+    for(int i=0;i<NUM_SONARS;i++){
+        ROS_INFO("Sonar received");
         sonars[i] = msg->data[i];
+    }
+}
+
+// convert NN output (0=reverse,1=forward) to motor speed
+inline float net2motor(float f){
+    f -= 0.5f; // recentre
+    f *= 15.0f; // scale for speed
+    return f;
 }
 
 int main(int argc,char *argv[]){
@@ -31,7 +41,7 @@ int main(int argc,char *argv[]){
     // which must match up!
     
     // 3 inputs, some hidden nodes, 2 outputs
-    int layers[]={NUM_SONARS,10,2};
+    int layers[]={NUM_SONARS,8,2};
     BackpropNetNoBiasHormone net(1); // eta is irrelevant
     net.init(3,layers);
     
@@ -52,8 +62,8 @@ int main(int argc,char *argv[]){
     double *qq = new double[gs];
     size_t r = fread(qq,sizeof(double),gs,a);
     fclose(a);
-    if(r!=sizeof(double)*gs){
-        ROS_ERROR("Netfile %s too short",file.c_str());
+    if(r!=gs){
+        ROS_ERROR("Netfile %s too short: %d wanted, %ld read",file.c_str(),gs,r);
         exit(0);
     }
     net.setFromGenome(qq);
@@ -87,10 +97,10 @@ int main(int argc,char *argv[]){
         // update the robot
         double *outs = net.getOutputs();
         std_msgs::Float32 msg;
-        msg.data=outs[0];
+        msg.data=net2motor(outs[0]);
         leftMotorPub.publish(msg);
-        msg.data=outs[1];
-        leftMotorPub.publish(msg);
+        msg.data=net2motor(outs[1]);
+        rightMotorPub.publish(msg);
         
         rate.sleep();
     }
