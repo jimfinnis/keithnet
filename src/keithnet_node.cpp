@@ -29,7 +29,7 @@ void sonarCallback(const std_msgs::Float32MultiArray::ConstPtr &msg){
 // convert NN output (0=reverse,1=forward) to motor speed
 inline float net2motor(float f){
     f -= 0.5f; // recentre
-    f *= 15.0f; // scale for speed
+    f *= 50.0f; // scale for speed
     return f;
 }
 
@@ -41,7 +41,7 @@ int main(int argc,char *argv[]){
     // which must match up!
     
     // 3 inputs, some hidden nodes, 2 outputs
-    int layers[]={NUM_SONARS,8,2};
+    int layers[]={NUM_SONARS,HNODES,2};
     BackpropNetNoBiasHormone net(1); // eta is irrelevant
     net.init(3,layers);
     
